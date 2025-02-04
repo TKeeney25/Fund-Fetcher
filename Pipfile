@@ -5,8 +5,7 @@ name = "pypi"
 
 [packages]
 pytest-playwright = "*"
-playwright = "*"
-playwright-stealth = "*"
+selenium = "*"
 
 [dev-packages]
 

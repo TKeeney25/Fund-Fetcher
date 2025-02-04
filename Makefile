@@ -3,6 +3,4 @@ init:
 
 test:
 	pipenv run pytest
-
-playwright:
-	playwright install chromium
+	
