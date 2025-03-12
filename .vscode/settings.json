@@ -5,10 +5,15 @@
         "--disable=C0116",
         "--disable=C0301",
         "--disable=W0603",
+        "--disable=W0401",
+        "--disable=W0614",
     ],
     "python.testing.pytestArgs": [
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "python.analysis.extraPaths": [
+        "./fundfetcher/logging"
+    ]
 }

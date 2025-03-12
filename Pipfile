@@ -5,7 +5,11 @@ name = "pypi"
 
 [packages]
 pytest-playwright = "*"
+sqlmodel = "*"
+undetected-chromedriver = "*"
 selenium = "*"
+setuptools = "*"
+boto3 = "*"
 
 [dev-packages]
 
