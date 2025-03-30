@@ -16,6 +16,15 @@ LOGIN_URL = f"{BASE_URL}login"
 LOGIN_EMAIL = config.get("ADMIN_EMAIL")
 LOGIN_PASSWORD = config.get("ADMIN_PASSWORD")
 
+SCREENSHOTS_FOLDER = 'screenshots'
+
+# region Logging
+LOG_FILE_NAME = 'logs/log.log'
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+LOG_MAX_BYTES = 100000
+LOG_BACKUP_COUNT = 10
+# endregion
+
 # REUSED XPATHS
 LOGIN_BUTTON = "//button[@type='submit']"
 SPAN_CONTAINS_TEXT = "//span[contains(text(), '{text}')]"

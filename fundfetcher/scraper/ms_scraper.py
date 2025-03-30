@@ -26,8 +26,9 @@ class Scraper:
     retries = 0
     retry_backoff = [0, 10, 60, 5*60, 10*60, 60*60]
 
-    def __init__(self):
-        pass
+    def __init__(self, keep_screenshots:bool = False):
+        if not keep_screenshots:
+            self.clear_screenshots_folder()
 
     def __enter__(self):
         self.login()
@@ -60,7 +61,7 @@ class Scraper:
     @scraper_exception_handler
     def login(self):
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=False, use_subprocess=False)
+        self.driver = uc.Chrome(headless=True, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)
@@ -273,15 +274,22 @@ class Scraper:
     def screenshot(self, screenshot_source=""):
         if len(screenshot_source) > 0:
             screenshot_source = f"_{screenshot_source}"
-        # Create the screenshot folder if it doesn't exist
-        screenshot_folder = 'screenshots'
+        screenshot_folder = SCREENSHOTS_FOLDER
         if not os.path.exists(screenshot_folder):
             os.makedirs(screenshot_folder)
 
-        # Generate a unique ID based on the current time
         screenshot_id = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
 
-        # Save the screenshot
         screenshot_path = os.path.join(screenshot_folder, f'{screenshot_id}{screenshot_source}.png')
         self.driver.save_screenshot(screenshot_path)
 
+    def clear_screenshots_folder(self):
+        screenshot_folder = SCREENSHOTS_FOLDER
+        if os.path.exists(screenshot_folder):
+            for file in os.listdir(screenshot_folder):
+                file_path = os.path.join(screenshot_folder, file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    logger.error("Failed to delete file %s: %s", file_path, repr(e))

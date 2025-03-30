@@ -6,7 +6,7 @@ import queue
 import time
 from typing import List
 
-from fundfetcher.constants import CSV_FILE_PATH, IGNORED_FAILED_TICKERS
+from fundfetcher.constants import *
 from fundfetcher.database.query_processor import Processor
 from fundfetcher.enums.ticker_types import TickerType
 from fundfetcher.messenger.email import send_email_with_results
@@ -17,8 +17,8 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
-    handlers = [RotatingFileHandler('logs/log.log', maxBytes=100000, backupCount=10)],
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handlers = [RotatingFileHandler(LOG_FILE_NAME, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT)],
+    format=LOG_FORMAT
 )
 
 def read_funds_csv() -> list:
