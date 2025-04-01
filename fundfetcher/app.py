@@ -21,8 +21,8 @@ logging.basicConfig(
     format=LOG_FORMAT
 )
 
-def read_funds_csv() -> list:
-    funds = []
+def read_funds_csv() -> set[str]:
+    funds:set[str] = set()
     file_path = None
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     for root, dirs, files in os.walk(project_root + CSV_FILE_PATH):
@@ -35,14 +35,37 @@ def read_funds_csv() -> list:
         exception = FileNotFoundError("No fund file found")
         logger.exception("No fund file found: %s", repr(exception))
         raise exception
-    with open(file_path, mode='r', encoding="utf-8") as file:
+    with open(file_path, mode='r', encoding="utf-8-sig") as file:
         csv_reader = csv.reader(file)
         for row in csv_reader:
             if row:
-                funds.append(row[0])
+                funds.add(row[0])
     return funds
 
+def main_tickertracker():
+    with Processor(reuse_db=True) as processor:
+        with Scraper(keep_screenshots=True) as scraper:
+            tickers:List[str] = read_funds_csv()
+            for ticker in tickers:
+                try:
+                    logger.info("Processing %s", ticker)
+                    ticker_type:TickerType = scraper.find_ticker(ticker)
+                    logger.info("Step 1/3 Complete - %s is a %s", ticker, ticker_type.value)
+                    trailing_returns:TrailingReturns = scraper.get_trailing_returns(ticker_type)
+                    logger.info("Step 2/3 Complete - %s has trailing returns %s", ticker, trailing_returns)
+                    processor.add_trailing_returns(ticker, trailing_returns)
+                    morningstar_rating = scraper.get_morningstar_rating(ticker_type)
+                    logger.info("Step 3/3 Complete - %s has an ms rating of %s", ticker, morningstar_rating)
+                    processor.add_morningstar_rating(ticker, morningstar_rating)
+                except Exception as e:
+                    logger.exception("Error processing %s: %s", ticker, repr(e))
+
 def main():
+    # TODO: Handle header row in CSV file
+    # TODO: auto-convert BRK/B to BRK.B
+    # TODO: Handle error with fund like DXC
+
+
     now = datetime.now()
     six_am = now.replace(hour=6, minute=0, second=0, microsecond=0)
     if now > six_am:
@@ -51,7 +74,7 @@ def main():
     seconds_until_six_am_str = time.strftime('%H:%M:%S', time.gmtime(seconds_until_six_am))
     logger.info("Time until 6AM: %s", seconds_until_six_am_str)
     time.sleep(seconds_until_six_am)
-    tickers:List[str] = read_funds_csv()
+    tickers:set[str] = read_funds_csv()
     ticker_queue = queue.Queue()
     for ticker in tickers:
         ticker_queue.put(ticker)
