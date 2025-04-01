@@ -185,7 +185,7 @@ class Processor():
     def export_to_ticker_tracker_xlsx(self):
         statement = select(Ticker).where(Ticker.processing_error == None)
         tickers = self.session.exec(statement).all()
-
+        # TODO handle commas in names
         os.makedirs(os.path.dirname(OUTPUT_CSV_FILE_PATH), exist_ok=True)
         os.makedirs(os.path.dirname(OUTPUT_XLSX_FILE_PATH), exist_ok=True)
         with open(OUTPUT_CSV_FILE_PATH, 'w', encoding="utf-8") as file:
