@@ -22,3 +22,5 @@ def etl(title_data:List[str], raw_data:List[str]) -> TrailingReturns:
         except ValueError:
             data_dict[title.lower()] = None
     return TrailingReturns(**data_dict)
+
+

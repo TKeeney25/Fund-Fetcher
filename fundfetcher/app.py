@@ -8,8 +8,10 @@ from typing import List
 
 from fundfetcher.constants import *
 from fundfetcher.database.query_processor import Processor
+from fundfetcher.enums.screener import ScreenerDownPresses
 from fundfetcher.enums.ticker_types import TickerType
 from fundfetcher.messenger.email import send_email_with_results
+from fundfetcher.models.screener_data import ScreenerData
 from fundfetcher.models.trailing_returns import TrailingReturns
 from fundfetcher.scraper.ms_scraper import Scraper
 import logging
@@ -41,24 +43,60 @@ def read_funds_csv() -> set[str]:
             if row:
                 funds.add(row[0])
     return funds
-
+# TODO fix browser run out of memory issue
 def main_tickertracker():
     with Processor(reuse_db=True) as processor:
-        with Scraper(keep_screenshots=True) as scraper:
-            tickers:List[str] = read_funds_csv()
+        with Scraper(keep_screenshots=False) as scraper:
+            # fund_to_scrape = [ScreenerDownPresses.ETF, ScreenerDownPresses.MUTUAL_FUND]
+            # for fund_type in fund_to_scrape:
+            #     logger.info("Processing fund type %s", fund_type)
+            #     scraper.go_to_screener(fund_type)
+            #     input("Press Enter to continue...")
+            #     current, maximum = 0, 1
+            #     dont = True
+            #     while current != maximum:
+            #         if dont:
+            #             dont = False
+            #         else:
+            #             current, maximum = scraper.paginate_next()
+            #             logger.info("Current: %s, Maximum: %s", current, maximum)
+            #         screener_data:List[ScreenerData] = scraper.get_screener_data()
+            #         for data in screener_data:
+            #             processor.add_screener_data(data.symbol, data)
+            processor.redrive_dlq()
+            tickers:List[str] = processor.get_non_filtered_tickers()
+            ticker_queue = queue.Queue()
             for ticker in tickers:
+                ticker_queue.put(ticker)
+            while not ticker_queue.empty():
+                ticker = ticker_queue.get()
+                if processor.has_ticker_been_processed(ticker):
+                    logger.info("Skipping %s as it has already been processed", ticker)
+                    continue
                 try:
                     logger.info("Processing %s", ticker)
                     ticker_type:TickerType = scraper.find_ticker(ticker)
-                    logger.info("Step 1/3 Complete - %s is a %s", ticker, ticker_type.value)
-                    trailing_returns:TrailingReturns = scraper.get_trailing_returns(ticker_type)
-                    logger.info("Step 2/3 Complete - %s has trailing returns %s", ticker, trailing_returns)
-                    processor.add_trailing_returns(ticker, trailing_returns)
-                    morningstar_rating = scraper.get_morningstar_rating(ticker_type)
-                    logger.info("Step 3/3 Complete - %s has an ms rating of %s", ticker, morningstar_rating)
-                    processor.add_morningstar_rating(ticker, morningstar_rating)
+                    # TODO get brokerage availability
+                    logger.info("Step 1/2 Complete - %s is a %s", ticker, ticker_type.value)
+                    negative_returns = scraper.get_number_of_negative_returns(ticker_type)
+                    processor.add_number_of_negative_years(ticker, negative_returns)
+                    logger.info("Step 2/2 Complete - %s has negative returns %s", ticker, negative_returns)
+                    # TODO get risk_score
+                    # logger.info("Step 3/4 Complete - %s has a risk score of %s", ticker, 0)
+                    processor.mark_ticker_as_processed_successfully(ticker)
+                    logger.info("%s has been processed successfully", ticker)
                 except Exception as e:
                     logger.exception("Error processing %s: %s", ticker, repr(e))
+                    processor.handle_processing_error(ticker, e)
+                    ticker_queue.put(ticker)
+            processor.export_to_ticker_tracker_xlsx()
+            failed_tickers = processor.get_failed_tickers()
+            logger.info("The following tickers failed %s", failed_tickers)
+            filtered_tickers = processor.get_filtered_tickers()
+            logger.info("The following tickers were filtered %s", filtered_tickers)
+            unfinished_tickers = processor.get_unfinished_tickers()
+            logger.info("The following tickers were unfinished %s", unfinished_tickers)
+
 
 def main():
     # TODO: Handle header row in CSV file
@@ -134,4 +172,4 @@ def main():
             send_email_with_results(result_str)
     logger.info("Processing complete")
 if __name__ == "__main__":
-    main()
+    main_tickertracker()

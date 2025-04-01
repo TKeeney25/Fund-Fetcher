@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 import os
-from typing import List
+from typing import Any, List, Tuple
 
 import selenium
 import undetected_chromedriver as uc
@@ -15,6 +15,8 @@ from undetected_chromedriver import Chrome, WebElement
 from fundfetcher.enums.screener import ScreenerDownPresses
 from fundfetcher.enums.ticker_types import TickerType
 from fundfetcher.models import trailing_returns
+from fundfetcher.models import screener_data
+from fundfetcher.models.screener_data import ScreenerData
 from fundfetcher.models.trailing_returns import TrailingReturns
 from fundfetcher.constants import *
 
@@ -61,7 +63,7 @@ class Scraper:
     @scraper_exception_handler
     def login(self):
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=True, use_subprocess=False)
+        self.driver = uc.Chrome(headless=False, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)
@@ -129,6 +131,25 @@ class Scraper:
             if ticker[-1].upper() == "X":
                 return TickerType.MUTUAL_FUND
             return TickerType.ETF
+    
+    @scraper_exception_handler
+    def get_number_of_negative_returns(self, ticker_type:TickerType) -> int:
+        self._navigate_to_span("Performance", "performance")
+
+        table_div = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'performance-annual-table')))
+        table = table_div.find_element(By.TAG_NAME, 'table')
+        rows = table.find_elements(By.TAG_NAME, 'tr')
+        title_row_list = self._convert_table_row_to_list(rows[0])
+        data_row_list = self._convert_table_row_to_list(rows[1])
+        years = [str(year) for year in range(datetime.now().year - 10, datetime.now().year)]
+        
+        num_negative_years = 0
+        for i, title in enumerate(title_row_list):
+            if title in years:
+                if '-' in data_row_list[i]:
+                    num_negative_years += 1
+        return num_negative_years
+
 
     @scraper_exception_handler
     def get_trailing_returns(self, ticker_type:TickerType) -> TrailingReturns:
@@ -210,16 +231,12 @@ class Scraper:
         select_element.send_keys(Keys.ENTER)
         split_button = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'mdc-split-button__button__mdc')))
         split_button.click()
-        temp_div = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(text(), 'Temp')]")))
+        temp_div = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(text(), 'TickerTracker')]")))
         temp_div.click()
 
-        # self.wait.until(EC.presence_of_element_located((By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset//input[@type='checkbox']")))
-        # checkboxes = self.driver.find_elements(By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset//input[@type='checkbox']")
         self.wait.until(EC.presence_of_element_located((By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset/label")))
         checkbox_labels = self.driver.find_elements(By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset/label")
         
-        # fieldset = legend.find_element(By.XPATH, "./ancestor::fieldset")
-        # checkboxes = fieldset.find_elements(By.XPATH, ".//input[@type='checkbox']")
         for checkbox_label in checkbox_labels:
             checkbox = checkbox_label.find_element(By.TAG_NAME, 'input')
             checked = len(checkbox_label.find_element(By.TAG_NAME, 'span').find_element(By.TAG_NAME, 'span').find_elements(By.XPATH, "./*")) > 0
@@ -256,7 +273,48 @@ class Scraper:
         return fund_ratings
     
     @scraper_exception_handler
-    def paginate_next(self):
+    def get_screener_data(self) -> List[ScreenerData]: # TODO in the future use np 2d array to speed up the process
+        table = self.wait.until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
+        
+        thead = table.find_element(By.TAG_NAME, 'thead')
+        title_row = thead.find_element(By.TAG_NAME, 'tr')
+        title_row_elements = title_row.find_elements(By.TAG_NAME, "th")
+        title_row_list = [element.text.replace("\n", " ") for element in title_row_elements]
+
+        tbody = table.find_element(By.TAG_NAME, 'tbody')
+        rows = tbody.find_elements(By.TAG_NAME, 'tr')
+        return_list = []
+        for row in rows:
+            row_elements = row.find_elements(By.XPATH, './th | ./td')
+            return_list.append(screener_data.etl(title_row_list, self.parse_screener_row(row_elements)))
+
+        return return_list
+    
+    def parse_screener_row(self, row_elements:List[WebElement]) -> list[Any]:
+        row_list = []
+        for element in row_elements:
+            element_text = element.text.strip()
+            try:
+                if "%" in element_text:
+                    sign = -1 if element_text[0] == "−" else 1 # Yep that is different from "-"
+                    element_text = element_text.replace("−", "")
+                    element_text = element_text.replace("%", "")
+                    element_text = element_text.replace(",", "")
+                    element_text = element_text.replace("<", "")
+                    element_text = element_text.strip()
+                    row_list.append(float(element_text) * sign)
+                elif "—" == element_text:
+                    row_list.append(None)
+                elif len(element_text) == 0:
+                    row_list.append(len(element.find_element(By.TAG_NAME, 'span').find_elements(By.TAG_NAME, 'span')))
+                else:
+                    row_list.append(element_text)
+            except ValueError:
+                row_list.append(element_text)
+        return row_list
+
+    @scraper_exception_handler
+    def paginate_next(self) -> Tuple[int, int]:
         buttons = self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//button")))
         next_button = None
         for button in buttons:
@@ -269,6 +327,11 @@ class Scraper:
         if next_button is None:
             raise ValueError("Next button not found")
         next_button.click()
+        paginate_div = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mds-pagination__left__mdc")))
+        spans = paginate_div.find_elements(By.TAG_NAME, "span")
+        current = int(spans[0].text.replace(',', '').split("–")[1])
+        maximum = int(spans[1].text.replace(',', '').split(" ")[0])
+        return current, maximum
 
 
     def screenshot(self, screenshot_source=""):

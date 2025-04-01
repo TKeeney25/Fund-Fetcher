@@ -10,6 +10,8 @@ undetected-chromedriver = "*"
 selenium = "*"
 setuptools = "*"
 boto3 = "*"
+pandas = "*"
+openpyxl = "*"
 
 [dev-packages]
 
