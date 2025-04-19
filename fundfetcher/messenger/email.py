@@ -27,4 +27,3 @@ def send_email_with_results(body: str):
         Destinations=CLIENT_EMAILS,
         RawMessage={"Data": msg.as_bytes()}
     )
-    print(response)

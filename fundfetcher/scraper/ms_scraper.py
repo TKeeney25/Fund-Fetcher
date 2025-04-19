@@ -1,9 +1,11 @@
 from datetime import datetime
 import logging
 import os
+from time import sleep
 from typing import List
 
 import selenium
+import selenium.webdriver
 import undetected_chromedriver as uc
 from urllib3.exceptions import MaxRetryError
 from selenium.webdriver.common.by import By
@@ -58,8 +60,16 @@ class Scraper:
                 raise e
         return inner_function
 
+    def check_chrome_is_up_to_date(self):
+        with selenium.webdriver.Chrome() as driver:
+            # TODO: Make better
+            driver.get("chrome://settings/help")
+            sleep(60)
+            logger.info("Hopefully Chrome is up to date")
+
     @scraper_exception_handler
     def login(self):
+        self.check_chrome_is_up_to_date()
         logger.info("Logging in to Morningstar")
         self.driver = uc.Chrome(headless=True, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
@@ -175,7 +185,11 @@ class Scraper:
     @scraper_exception_handler
     def get_morningstar_rating(self, ticker_type:TickerType) -> int | None:
         if ticker_type == TickerType.STOCK:
-            stock_stars_span = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mdc-star-rating")))
+            try:
+                stock_stars_span = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mdc-star-rating")))
+            except selenium.common.exceptions.TimeoutException:
+                logger.warning("No star rating found for %s", ticker_type.value)
+                return None
             star_svgs = stock_stars_span.find_elements(By.TAG_NAME, "svg")
             return len(star_svgs)
         non_stock_stars_div = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mdc-security-header__details")))

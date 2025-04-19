@@ -36,4 +36,3 @@ EMAIL_SOURCE = config.get('AWS_EMAIL')
 CLIENT_EMAILS = config.get('CLIENT_EMAILS')
 OUTPUT_CSV_FILE = 'DailyFundReturns.csv'
 OUTPUT_CSV_FILE_PATH = Path(get_root_dir()) / 'output' / OUTPUT_CSV_FILE
-IGNORED_FAILED_TICKERS = ['TAIMF', 'NKTR', 'DXC']
