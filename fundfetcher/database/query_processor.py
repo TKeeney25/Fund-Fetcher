@@ -1,11 +1,12 @@
 import logging
 import os
+import re
 import time
 
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from fundfetcher.constants import MAX_PROCESSING_ATTEMPTS, OUTPUT_CSV_FILE, OUTPUT_CSV_FILE_PATH
+from fundfetcher.constants import MAX_PROCESSING_ATTEMPTS, OUTPUT_CSV_FILE_PATH
 from fundfetcher.database.models import Ticker
 from fundfetcher.models.trailing_returns import TrailingReturns
 
@@ -16,22 +17,31 @@ logger = logging.getLogger(__name__)
 class Processor():
     engine:Engine
     session:Session
+    reuse_db:bool
     def __init__(self, in_memory:bool = False, reuse_db:bool = False):
+        self.reuse_db = reuse_db
         if in_memory:
             self.engine = create_engine('sqlite+pysqlite:///:memory:')
         else:
-            if not reuse_db:
-                if os.path.exists('database.db'):
-                    os.remove('database.db')
             self.engine = create_engine('sqlite:///database.db')
         SQLModel.metadata.create_all(self.engine)
 
     def __enter__(self):
         self.session = Session(self.engine)
+        if not self.reuse_db:
+            self.clear_database()
         return self
 
     def __exit__(self, *_):
         self.session.close()
+
+    def clear_database(self):
+        logger.info("Clearing database")
+        statement = select(Ticker)
+        tickers = self.session.exec(statement).all()
+        for ticker in tickers:
+            self.session.delete(ticker)
+        self.session.commit()
 
     def has_ticker_been_processed(self, ticker: str) -> bool:
         statement = select(Ticker).where(Ticker.symbol == ticker).where(Ticker.processing_complete != None)

@@ -3,15 +3,15 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import boto3
 
-from fundfetcher.constants import CLIENT_EMAILS, EMAIL_SOURCE, OUTPUT_CSV_FILE, OUTPUT_CSV_FILE_PATH
+from fundfetcher.constants import EMAIL_SOURCE, OUTPUT_CSV_FILE, OUTPUT_CSV_FILE_PATH
 from datetime import datetime
 
-def send_email_with_results(body: str):
+def send_email_with_results(body: str, recipients: list[str]):
     msg = MIMEMultipart()
     current_date = datetime.now().strftime("%b. %d, %Y")
     msg['Subject'] = f'FundFetcher Results: {current_date}'
     msg['From'] = EMAIL_SOURCE
-    msg['To'] = str(CLIENT_EMAILS).replace('[', '').replace(']', '').replace("'", '')
+    msg['To'] = str(recipients).replace('[', '').replace(']', '').replace("'", '')
     body = MIMEText(body, "plain")
     msg.attach(body)
 
@@ -24,6 +24,6 @@ def send_email_with_results(body: str):
     ses = boto3.client('ses')
     response = ses.send_raw_email(
         Source=EMAIL_SOURCE,
-        Destinations=CLIENT_EMAILS,
+        Destinations=recipients,
         RawMessage={"Data": msg.as_bytes()}
     )

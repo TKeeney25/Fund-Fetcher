@@ -13,7 +13,7 @@ BASE_URL = "https://www.morningstar.com/"
 SEARCH_URL = f"{BASE_URL}search?query="
 
 LOGIN_URL = f"{BASE_URL}login"
-LOGIN_EMAIL = config.get("ADMIN_EMAIL")
+ADMIN_EMAIL = config.get("ADMIN_EMAIL")
 LOGIN_PASSWORD = config.get("ADMIN_PASSWORD")
 
 SCREENSHOTS_FOLDER = 'screenshots'
@@ -33,6 +33,11 @@ CSV_FILE_PATH = '/fundfetcher/funds/'
 MAX_PROCESSING_ATTEMPTS = 3
 EMAIL_SOURCE = config.get('AWS_EMAIL')
 
-CLIENT_EMAILS = config.get('CLIENT_EMAILS')
+CLIENT_EMAILS:list[str] = config.get('CLIENT_EMAILS')
+CLIENT_EMAILS.append(ADMIN_EMAIL)
+
 OUTPUT_CSV_FILE = 'DailyFundReturns.csv'
 OUTPUT_CSV_FILE_PATH = Path(get_root_dir()) / 'output' / OUTPUT_CSV_FILE
+
+HEALTHCHECK_TIMES_HOUR = [0, 4, 13, 18, 22]
+TARGET_RUN_TIME = 6

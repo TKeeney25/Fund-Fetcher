@@ -78,7 +78,7 @@ class Scraper:
 
         self.wait = WebDriverWait(self.driver, SELENIUM_TIMEOUT, 0.01)
         username_field = self.wait.until(EC.presence_of_element_located((By.ID, 'username')))
-        username_field.send_keys(LOGIN_EMAIL)
+        username_field.send_keys(ADMIN_EMAIL)
 
         submit_button = self.wait.until(EC.presence_of_element_located((By.XPATH, LOGIN_BUTTON)))
         submit_button.click()
