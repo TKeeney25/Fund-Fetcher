@@ -45,25 +45,25 @@ def read_funds_csv() -> set[str]:
     return funds
 # TODO fix browser run out of memory issue
 def main_tickertracker():
-    with Processor(reuse_db=True) as processor:
+    with Processor(reuse_db=False) as processor:
         with Scraper(keep_screenshots=False) as scraper:
-            # fund_to_scrape = [ScreenerDownPresses.ETF, ScreenerDownPresses.MUTUAL_FUND]
-            # for fund_type in fund_to_scrape:
-            #     logger.info("Processing fund type %s", fund_type)
-            #     scraper.go_to_screener(fund_type)
-            #     input("Press Enter to continue...")
-            #     current, maximum = 0, 1
-            #     dont = True
-            #     while current != maximum:
-            #         if dont:
-            #             dont = False
-            #         else:
-            #             current, maximum = scraper.paginate_next()
-            #             logger.info("Current: %s, Maximum: %s", current, maximum)
-            #         screener_data:List[ScreenerData] = scraper.get_screener_data()
-            #         for data in screener_data:
-            #             processor.add_screener_data(data.symbol, data)
-            processor.redrive_dlq()
+            fund_to_scrape = [ScreenerDownPresses.ETF, ScreenerDownPresses.MUTUAL_FUND]
+            for fund_type in fund_to_scrape:
+                logger.info("Processing fund type %s", fund_type)
+                scraper.go_to_screener(fund_type)
+                input("Press Enter to continue...")
+                current, maximum = 0, 1
+                dont = True
+                while current != maximum:
+                    if dont:
+                        dont = False
+                    else:
+                        current, maximum = scraper.paginate_next()
+                        logger.info("Current: %s, Maximum: %s", current, maximum)
+                    screener_data:List[ScreenerData] = scraper.get_screener_data()
+                    for data in screener_data:
+                        processor.add_screener_data(data.symbol, data)
+            # processor.redrive_dlq()
             tickers:List[str] = processor.get_non_filtered_tickers()
             ticker_queue = queue.Queue()
             for ticker in tickers:
