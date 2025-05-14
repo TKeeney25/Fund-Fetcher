@@ -6,9 +6,9 @@ import time
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from fundfetcher.constants import MAX_PROCESSING_ATTEMPTS, OUTPUT_CSV_FILE_PATH
-from fundfetcher.database.models import Ticker
-from fundfetcher.models.trailing_returns import TrailingReturns
+from constants import MAX_PROCESSING_ATTEMPTS, OUTPUT_CSV_FILE_PATH
+from database.models import Ticker
+from models.trailing_returns import TrailingReturns
 
 # pylint: disable=C0121
 

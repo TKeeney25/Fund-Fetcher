@@ -12,13 +12,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import WebDriverException
 from undetected_chromedriver import Chrome, WebElement
 
-from fundfetcher.enums.screener import ScreenerDownPresses
-from fundfetcher.enums.ticker_types import TickerType
-from fundfetcher.models import trailing_returns
-from fundfetcher.models.trailing_returns import TrailingReturns
-from fundfetcher.constants import *
+from enums.screener import ScreenerDownPresses
+from enums.ticker_types import TickerType
+from models import trailing_returns
+from models.trailing_returns import TrailingReturns
+from constants import *
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class Scraper:
         def inner_function(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except MaxRetryError as e:
+            except (MaxRetryError, WebDriverException) as e:
                 scraper = args[0]
                 logger.exception("Max retries exceeded doing func %s with args: %s", func.__name__, *args)
                 try:
@@ -286,16 +287,19 @@ class Scraper:
 
 
     def screenshot(self, screenshot_source=""):
-        if len(screenshot_source) > 0:
-            screenshot_source = f"_{screenshot_source}"
-        screenshot_folder = SCREENSHOTS_FOLDER
-        if not os.path.exists(screenshot_folder):
-            os.makedirs(screenshot_folder)
+        try:
+            if len(screenshot_source) > 0:
+                screenshot_source = f"_{screenshot_source}"
+            screenshot_folder = SCREENSHOTS_FOLDER
+            if not os.path.exists(screenshot_folder):
+                os.makedirs(screenshot_folder)
 
-        screenshot_id = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+            screenshot_id = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
 
-        screenshot_path = os.path.join(screenshot_folder, f'{screenshot_id}{screenshot_source}.png')
-        self.driver.save_screenshot(screenshot_path)
+            screenshot_path = os.path.join(screenshot_folder, f'{screenshot_id}{screenshot_source}.png')
+            self.driver.save_screenshot(screenshot_path)
+        except Exception as e:
+            logger.error("Failed to take screenshot: %s", repr(e))
 
     def clear_screenshots_folder(self):
         screenshot_folder = SCREENSHOTS_FOLDER

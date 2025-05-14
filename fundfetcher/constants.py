@@ -1,5 +1,5 @@
 from pathlib import Path
-from fundfetcher.helpers import get_root_dir
+from helpers import get_root_dir
 import json
 
 with open(Path(get_root_dir()) / 'config.json', encoding='utf-8') as f:
@@ -30,7 +30,7 @@ LOGIN_BUTTON = "//button[@type='submit']"
 SPAN_CONTAINS_TEXT = "//span[contains(text(), '{text}')]"
 
 CSV_FILE_PATH = '/fundfetcher/funds/'
-MAX_PROCESSING_ATTEMPTS = 3
+MAX_PROCESSING_ATTEMPTS = 10
 EMAIL_SOURCE = config.get('AWS_EMAIL')
 
 CLIENT_EMAILS:list[str] = config.get('CLIENT_EMAILS')
@@ -39,5 +39,5 @@ CLIENT_EMAILS.append(ADMIN_EMAIL)
 OUTPUT_CSV_FILE = 'DailyFundReturns.csv'
 OUTPUT_CSV_FILE_PATH = Path(get_root_dir()) / 'output' / OUTPUT_CSV_FILE
 
-HEALTHCHECK_TIMES_HOUR = [0, 4, 13, 18, 22]
+HEALTHCHECK_TIMES_HOUR = [17, 22]
 TARGET_RUN_TIME = 6

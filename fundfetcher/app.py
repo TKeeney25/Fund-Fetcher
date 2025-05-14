@@ -6,12 +6,12 @@ import queue
 import time
 from typing import List
 
-from fundfetcher.constants import *
-from fundfetcher.database.query_processor import Processor
-from fundfetcher.enums.ticker_types import TickerType
-from fundfetcher.messenger.email import send_email_with_results
-from fundfetcher.models.trailing_returns import TrailingReturns
-from fundfetcher.scraper.ms_scraper import Scraper
+from constants import *
+from database.query_processor import Processor
+from enums.ticker_types import TickerType
+from messenger.email import send_email_with_results
+from models.trailing_returns import TrailingReturns
+from scraper.ms_scraper import Scraper
 import logging
 from datetime import timedelta
 
@@ -163,11 +163,12 @@ def main():
                 result_str = f"FundFinder Processing Completed at {datetime.now().strftime('%H:%M:%S')}"
                 if len(failed_tickers) > 0:
                     logger.info("The following tickers failed %s", failed_tickers)
-                    if len(failed_tickers) > 5:
-                        logger.error("More than 5 tickers failed skipping sending to clients.")
-                        return
                     if not healthcheck:
-                        send_email_with_results(f"{result_str}\n\nData may be incomplete for the following tickers: {failed_tickers}", CLIENT_EMAILS)
+                        if len(failed_tickers) > 5:
+                            logger.error("More than 5 tickers failed skipping sending to clients.")
+                            send_email_with_results(f"{result_str}\n\nMore than 30 tickers failed skipping sending to clients: {failed_tickers}", [ADMIN_EMAIL])
+                        else:
+                            send_email_with_results(f"{result_str}\n\nData may be incomplete for the following tickers: {failed_tickers}", CLIENT_EMAILS)
                     else:
                         send_email_with_results(f"{result_str}\n\nHealthcheck shows unhealthy for the following tickers: {failed_tickers}", [ADMIN_EMAIL])
                 else:
