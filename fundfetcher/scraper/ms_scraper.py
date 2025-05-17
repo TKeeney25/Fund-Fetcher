@@ -28,10 +28,12 @@ class Scraper:
     wait:WebDriverWait
     retries = 0
     retry_backoff = [0, 10, 60, 5*60, 10*60, 60*60]
+    headless:bool
 
-    def __init__(self, keep_screenshots:bool = False):
+    def __init__(self, keep_screenshots:bool = False, headless:bool = True):
         if not keep_screenshots:
             self.clear_screenshots_folder()
+        self.headless = headless
 
     def __enter__(self):
         self.login()
@@ -72,7 +74,7 @@ class Scraper:
     def login(self):
         self.check_chrome_is_up_to_date()
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=True, use_subprocess=False)
+        self.driver = uc.Chrome(headless=self.headless, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)
@@ -162,17 +164,6 @@ class Scraper:
     def _get_stock_trailing_returns(self) -> TrailingReturns:
         self._navigate_to_span("Trailing Returns", "trailing-returns")
 
-        table_div = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'daily')))
-        table = table_div.find_element(By.TAG_NAME, 'table')
-        rows = table.find_elements(By.TAG_NAME, 'tr')
-        title_row_list = self._convert_table_row_to_list(rows[0])
-        data_row_list = self._convert_table_row_to_list(rows[1])
-        return trailing_returns.etl(title_row_list, data_row_list)
-
-    @scraper_exception_handler
-    def _get_trailing_returns(self) -> TrailingReturns:
-        self._navigate_to_span("Performance", "performance")
-
         table = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mds-table--fixed-column__sal")))
         thead = table.find_element(By.TAG_NAME, "thead")
         title_row = thead.find_element(By.TAG_NAME, "tr")
@@ -181,6 +172,24 @@ class Scraper:
 
         title_row_list = self._convert_table_row_to_list(title_row)
         data_row_list = self._convert_table_row_to_list(data_rows[0])
+        return trailing_returns.etl(title_row_list, data_row_list)
+
+    @scraper_exception_handler
+    def _get_trailing_returns(self) -> TrailingReturns:
+        self._navigate_to_span("Performance", "performance")
+        button = self.wait.until(EC.presence_of_element_located((By.XPATH, "//button[.//span[contains(text(), 'Annual')]]")))
+        button.click()
+        trailing_returns_span = self.wait.until(EC.presence_of_element_located((By.XPATH, "//span[contains(@class, 'mds-list-group-item__text__sal') and contains(text(), 'Trailing ')]/ancestor::li[span]")))
+        self.driver.execute_script("arguments[0].click();", trailing_returns_span)
+        table = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mds-table--fixed-column__sal")))
+        thead = table.find_element(By.TAG_NAME, "thead")
+        title_row = thead.find_element(By.TAG_NAME, "tr")
+        tbody = table.find_element(By.TAG_NAME, "tbody")
+        data_rows = tbody.find_elements(By.TAG_NAME, "tr")
+
+        title_row_list = self._convert_table_row_to_list(title_row)
+        data_row_list = self._convert_table_row_to_list(data_rows[0])
+        sleep(10)
         return trailing_returns.etl(title_row_list, data_row_list)
     
     @scraper_exception_handler

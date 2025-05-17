@@ -2,18 +2,18 @@ import logging
 from time import time
 import pytest
 
-from fundfetcher.enums.ticker_types import TickerType
-from fundfetcher.models.trailing_returns import TrailingReturns
-from fundfetcher.scraper.ms_scraper import Scraper
-from fundfetcher.tests.constants import TEST_ETF, TEST_FUND, TEST_STOCK
-from fundfetcher.enums.screener import ScreenerDownPresses
+from enums.ticker_types import TickerType
+from models.trailing_returns import TrailingReturns
+from scraper.ms_scraper import Scraper
+from tests.constants import TEST_ETF, TEST_FUND, TEST_STOCK
+from enums.screener import ScreenerDownPresses
 import csv
 from time import sleep
 
 
 @pytest.fixture(scope="module")
 def scraper():
-    login_scraper = Scraper()
+    login_scraper = Scraper(headless=False)
     login_scraper.login()
     return login_scraper
 

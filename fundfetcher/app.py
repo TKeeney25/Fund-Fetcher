@@ -113,7 +113,7 @@ def main():
     # TODO: Handle error with fund like DXC
     while True:
         try:
-            healthcheck = sleep_until_next_nearest_process_hour()
+            healthcheck = True#sleep_until_next_nearest_process_hour()
             tickers:set[str] = read_funds_csv()
             ticker_queue = queue.Queue()
             for ticker in tickers:
@@ -123,7 +123,7 @@ def main():
             start_time:int = int(time.time())
             with Processor() as processor:
                 processor.add_list_of_tickers(tickers)
-                with Scraper() as scraper:
+                with Scraper(headless=False) as scraper:
                     while not ticker_queue.empty():
                         progress = 1 - ticker_queue.qsize() / original_queue_size
                         curr_time:int = int(time.time())
