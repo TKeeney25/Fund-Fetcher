@@ -76,9 +76,9 @@ class Scraper:
         logger.info("Logging in to Morningstar")
         self.driver = uc.Chrome(headless=self.headless, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
-        # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)
 
+        self.driver.implicitly_wait(3.0)
         self.wait = WebDriverWait(self.driver, SELENIUM_TIMEOUT, 0.01)
         username_field = self.wait.until(EC.presence_of_element_located((By.ID, 'username')))
         username_field.send_keys(ADMIN_EMAIL)
@@ -177,11 +177,8 @@ class Scraper:
     @scraper_exception_handler
     def _get_trailing_returns(self) -> TrailingReturns:
         self._navigate_to_span("Performance", "performance")
-        button = self.wait.until(EC.presence_of_element_located((By.XPATH, "//button[.//span[contains(text(), 'Annual')]]")))
-        button.click()
-        trailing_returns_span = self.wait.until(EC.presence_of_element_located((By.XPATH, "//span[contains(@class, 'mds-list-group-item__text__sal') and contains(text(), 'Trailing ')]/ancestor::li[span]")))
-        self.driver.execute_script("arguments[0].click();", trailing_returns_span)
-        table = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mds-table--fixed-column__sal")))
+        trailing_returns_component = self.wait.until(EC.presence_of_element_located((By.XPATH, "//sal-components[contains(@tab, 'trailing-returns')]")))
+        table = trailing_returns_component.find_element(By.XPATH, ".//table[contains(@class, 'mds-table--fixed-column__sal')]")
         thead = table.find_element(By.TAG_NAME, "thead")
         title_row = thead.find_element(By.TAG_NAME, "tr")
         tbody = table.find_element(By.TAG_NAME, "tbody")
@@ -189,7 +186,6 @@ class Scraper:
 
         title_row_list = self._convert_table_row_to_list(title_row)
         data_row_list = self._convert_table_row_to_list(data_rows[0])
-        sleep(10)
         return trailing_returns.etl(title_row_list, data_row_list)
     
     @scraper_exception_handler
@@ -215,9 +211,13 @@ class Scraper:
 
     def _convert_table_row_to_list(self, row:WebElement) -> List[str]:
         output_list = []
-        cells = row.find_elements(By.TAG_NAME, 'th')
-        if len(cells) == 0:
-            cells = row.find_elements(By.TAG_NAME, 'td')
+        th = row.find_elements(By.TAG_NAME, 'th')
+        td = row.find_elements(By.TAG_NAME, 'td')
+        cells = []
+        if th is not None:
+            cells += th
+        if td is not None:
+            cells += td
         for cell in cells:
             output_list.append(cell.text)
         return output_list
