@@ -78,7 +78,6 @@ class Scraper:
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         self.driver.get(LOGIN_URL)
 
-        self.driver.implicitly_wait(3.0)
         self.wait = WebDriverWait(self.driver, SELENIUM_TIMEOUT, 0.01)
         username_field = self.wait.until(EC.presence_of_element_located((By.ID, 'username')))
         username_field.send_keys(ADMIN_EMAIL)
@@ -177,8 +176,7 @@ class Scraper:
     @scraper_exception_handler
     def _get_trailing_returns(self) -> TrailingReturns:
         self._navigate_to_span("Performance", "performance")
-        trailing_returns_component = self.wait.until(EC.presence_of_element_located((By.XPATH, "//sal-components[contains(@tab, 'trailing-returns')]")))
-        table = trailing_returns_component.find_element(By.XPATH, ".//table[contains(@class, 'mds-table--fixed-column__sal')]")
+        table = self.wait.until(EC.presence_of_element_located((By.XPATH, ".//table[contains(@class, 'mds-table--fixed-column__sal') and ancestor::sal-components[contains(@tab, 'trailing-returns')]]")))
         thead = table.find_element(By.TAG_NAME, "thead")
         title_row = thead.find_element(By.TAG_NAME, "tr")
         tbody = table.find_element(By.TAG_NAME, "tbody")
