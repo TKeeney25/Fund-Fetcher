@@ -1,5 +1,5 @@
 from pathlib import Path
-from fundfetcher.helpers import get_root_dir
+from helpers import get_root_dir
 import json
 
 with open(Path(get_root_dir()) / 'config.json', encoding='utf-8') as f:

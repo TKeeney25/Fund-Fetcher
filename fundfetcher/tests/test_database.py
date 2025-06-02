@@ -1,10 +1,10 @@
 import pytest
 from sqlmodel import select
 
-from fundfetcher.constants import MAX_PROCESSING_ATTEMPTS
-from fundfetcher.database.models import Ticker
-from fundfetcher.database.query_processor import Processor
-from fundfetcher.tests.constants import TEST_ETF, TEST_FUND, TEST_STOCK, TICKERS_LIST
+from constants import MAX_PROCESSING_ATTEMPTS
+from database.models import Ticker
+from database.query_processor import Processor
+from tests.constants import TEST_ETF, TEST_FUND, TEST_STOCK, TICKERS_LIST
 
 @pytest.fixture
 def processor() -> Processor:

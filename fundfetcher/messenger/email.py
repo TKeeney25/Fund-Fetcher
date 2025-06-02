@@ -3,7 +3,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import boto3
 
-from fundfetcher.constants import CLIENT_EMAILS, EMAIL_SOURCE, OUTPUT_CSV_FILE, OUTPUT_CSV_FILE_PATH
+from constants import CLIENT_EMAILS, EMAIL_SOURCE, OUTPUT_CSV_FILE, OUTPUT_CSV_FILE_PATH
 from datetime import datetime
 
 def send_email_with_results(body: str):

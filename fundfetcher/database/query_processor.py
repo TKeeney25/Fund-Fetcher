@@ -6,10 +6,10 @@ from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 import pandas as pd
 
-from fundfetcher.constants import MAX_PROCESSING_ATTEMPTS, OUTPUT_CSV_FILE_PATH, OUTPUT_XLSX_FILE_PATH
-from fundfetcher.database.models import Ticker
-from fundfetcher.models.screener_data import ScreenerData
-from fundfetcher.models.trailing_returns import TrailingReturns
+from constants import MAX_PROCESSING_ATTEMPTS, OUTPUT_CSV_FILE_PATH, OUTPUT_XLSX_FILE_PATH
+from database.models import Ticker
+from models.screener_data import ScreenerData
+from models.trailing_returns import TrailingReturns
 # pylint: disable=C0121
 
 logger = logging.getLogger(__name__)

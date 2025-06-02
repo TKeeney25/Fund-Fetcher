@@ -6,14 +6,14 @@ import queue
 import time
 from typing import List
 
-from fundfetcher.constants import *
-from fundfetcher.database.query_processor import Processor
-from fundfetcher.enums.screener import ScreenerDownPresses
-from fundfetcher.enums.ticker_types import TickerType
-from fundfetcher.messenger.email import send_email_with_results
-from fundfetcher.models.screener_data import ScreenerData
-from fundfetcher.models.trailing_returns import TrailingReturns
-from fundfetcher.scraper.ms_scraper import Scraper
+from constants import *
+from database.query_processor import Processor
+from enums.screener import ScreenerDownPresses
+from enums.ticker_types import TickerType
+from messenger.email import send_email_with_results
+from models.screener_data import ScreenerData
+from models.trailing_returns import TrailingReturns
+from scraper.ms_scraper import Scraper
 import logging
 
 logger = logging.getLogger(__name__)

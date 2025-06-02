@@ -12,13 +12,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from undetected_chromedriver import Chrome, WebElement
 
-from fundfetcher.enums.screener import ScreenerDownPresses
-from fundfetcher.enums.ticker_types import TickerType
-from fundfetcher.models import trailing_returns
-from fundfetcher.models import screener_data
-from fundfetcher.models.screener_data import ScreenerData
-from fundfetcher.models.trailing_returns import TrailingReturns
-from fundfetcher.constants import *
+from enums.screener import ScreenerDownPresses
+from enums.ticker_types import TickerType
+from models import trailing_returns
+from models import screener_data
+from models.screener_data import ScreenerData
+from models.trailing_returns import TrailingReturns
+from constants import *
 
 logger = logging.getLogger(__name__)
 
