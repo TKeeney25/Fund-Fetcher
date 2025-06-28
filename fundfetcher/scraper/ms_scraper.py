@@ -190,7 +190,7 @@ class Scraper:
     def get_morningstar_rating(self, ticker_type:TickerType) -> int | None:
         if ticker_type == TickerType.STOCK:
             try:
-                stock_stars_span = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mdc-star-rating")))
+                stock_stars_span = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mdc-star-rating__star__mdc")))
             except selenium.common.exceptions.TimeoutException:
                 logger.warning("No star rating found for %s", ticker_type.value)
                 return None
