@@ -28,10 +28,12 @@ class Scraper:
     wait:WebDriverWait
     retries = 0
     retry_backoff = [0, 10, 60, 5*60, 10*60, 60*60]
+    headless:bool
 
-    def __init__(self, keep_screenshots:bool = False):
+    def __init__(self, keep_screenshots:bool = False, headless:bool = True):
         if not keep_screenshots:
             self.clear_screenshots_folder()
+        self.headless = headless
 
     def __enter__(self):
         self.login()
@@ -72,9 +74,8 @@ class Scraper:
     def login(self):
         self.check_chrome_is_up_to_date()
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=True, use_subprocess=False)
+        self.driver = uc.Chrome(headless=self.headless, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
-        # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)
 
         self.wait = WebDriverWait(self.driver, SELENIUM_TIMEOUT, 0.01)
@@ -162,18 +163,20 @@ class Scraper:
     def _get_stock_trailing_returns(self) -> TrailingReturns:
         self._navigate_to_span("Trailing Returns", "trailing-returns")
 
-        table_div = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'daily')))
-        table = table_div.find_element(By.TAG_NAME, 'table')
-        rows = table.find_elements(By.TAG_NAME, 'tr')
-        title_row_list = self._convert_table_row_to_list(rows[0])
-        data_row_list = self._convert_table_row_to_list(rows[1])
+        table = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mds-table--fixed-column__sal")))
+        thead = table.find_element(By.TAG_NAME, "thead")
+        title_row = thead.find_element(By.TAG_NAME, "tr")
+        tbody = table.find_element(By.TAG_NAME, "tbody")
+        data_rows = tbody.find_elements(By.TAG_NAME, "tr")
+
+        title_row_list = self._convert_table_row_to_list(title_row)
+        data_row_list = self._convert_table_row_to_list(data_rows[0])
         return trailing_returns.etl(title_row_list, data_row_list)
 
     @scraper_exception_handler
     def _get_trailing_returns(self) -> TrailingReturns:
         self._navigate_to_span("Performance", "performance")
-
-        table = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mds-table--fixed-column__sal")))
+        table = self.wait.until(EC.presence_of_element_located((By.XPATH, ".//table[contains(@class, 'mds-table--fixed-column__sal') and ancestor::sal-components[contains(@tab, 'trailing-returns')]]")))
         thead = table.find_element(By.TAG_NAME, "thead")
         title_row = thead.find_element(By.TAG_NAME, "tr")
         tbody = table.find_element(By.TAG_NAME, "tbody")
@@ -191,7 +194,7 @@ class Scraper:
             except selenium.common.exceptions.TimeoutException:
                 logger.warning("No star rating found for %s", ticker_type.value)
                 return None
-            star_svgs = stock_stars_span.find_elements(By.TAG_NAME, "svg")
+            star_svgs = stock_stars_span.find_elements(By.CLASS_NAME, "mdc-star-rating__star__mdc")
             return len(star_svgs)
         non_stock_stars_div = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mdc-security-header__details")))
         try:
@@ -206,9 +209,13 @@ class Scraper:
 
     def _convert_table_row_to_list(self, row:WebElement) -> List[str]:
         output_list = []
-        cells = row.find_elements(By.TAG_NAME, 'th')
-        if len(cells) == 0:
-            cells = row.find_elements(By.TAG_NAME, 'td')
+        th = row.find_elements(By.TAG_NAME, 'th')
+        td = row.find_elements(By.TAG_NAME, 'td')
+        cells = []
+        if th is not None:
+            cells += th
+        if td is not None:
+            cells += td
         for cell in cells:
             output_list.append(cell.text)
         return output_list

@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import time
 
 from sqlalchemy import Engine
@@ -99,6 +98,10 @@ class Processor():
         statement = select(Ticker).where(Ticker.processing_error != None)
         tickers = self.session.exec(statement).all()
         return [ticker.symbol for ticker in tickers]
+    
+    def get_everything(self) -> list[Ticker]:
+        statement = select(Ticker)
+        return self.session.exec(statement).all()
     
     def export_to_csv(self):
         statement = select(Ticker)

@@ -9,6 +9,7 @@ from typing import List
 from constants import *
 from database.query_processor import Processor
 from enums.ticker_types import TickerType
+from controls import check_data_controls
 from messenger.email import send_email_with_results
 from models.trailing_returns import TrailingReturns
 from scraper.ms_scraper import Scraper
@@ -123,7 +124,7 @@ def main():
             start_time:int = int(time.time())
             with Processor() as processor:
                 processor.add_list_of_tickers(tickers)
-                with Scraper() as scraper:
+                with Scraper(headless=True) as scraper:
                     while not ticker_queue.empty():
                         progress = 1 - ticker_queue.qsize() / original_queue_size
                         curr_time:int = int(time.time())
@@ -158,19 +159,21 @@ def main():
                             logger.exception("Error processing %s: %s", ticker, repr(e))
                             processor.handle_processing_error(ticker, e)
                             ticker_queue.put(ticker)
+                data_controls_failures = check_data_controls(processor)
                 processor.export_to_csv()
                 failed_tickers = processor.get_failed_tickers()
                 result_str = f"FundFinder Processing Completed at {datetime.now().strftime('%H:%M:%S')}"
-                if len(failed_tickers) > 0:
+                if len(failed_tickers) > 0 or len(data_controls_failures) > 0:
                     logger.info("The following tickers failed %s", failed_tickers)
                     if not healthcheck:
                         if len(failed_tickers) > 5:
                             logger.error("More than 5 tickers failed skipping sending to clients.")
                             send_email_with_results(f"{result_str}\n\nMore than 30 tickers failed skipping sending to clients: {failed_tickers}", [ADMIN_EMAIL])
                         else:
-                            send_email_with_results(f"{result_str}\n\nData may be incomplete for the following tickers: {failed_tickers}", CLIENT_EMAILS)
+                            send_email_with_results(f"{result_str}", CLIENT_EMAILS)
+                            send_email_with_results(f"{result_str}\n\nHealthcheck shows unhealthy for the following tickers: {failed_tickers}\nAnd the following controls failed: {data_controls_failures}", [ADMIN_EMAIL])
                     else:
-                        send_email_with_results(f"{result_str}\n\nHealthcheck shows unhealthy for the following tickers: {failed_tickers}", [ADMIN_EMAIL])
+                        send_email_with_results(f"{result_str}\n\nHealthcheck shows unhealthy for the following tickers: {failed_tickers}\nAnd the following controls failed: {data_controls_failures}", [ADMIN_EMAIL])
                 else:
                     if not healthcheck:
                         send_email_with_results(result_str, CLIENT_EMAILS)

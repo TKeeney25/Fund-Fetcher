@@ -18,7 +18,7 @@ def etl(title_data:List[str], raw_data:List[str]) -> TrailingReturns:
     data_dict:Dict[str, Optional[float]] = {}
     for i, title in enumerate(title_data):
         try:
-            data_dict[title.lower()] = float(raw_data[i])
+            data_dict[title.lower().strip()] = float(raw_data[i])
         except ValueError:
             data_dict[title.lower()] = None
     return TrailingReturns(**data_dict)
