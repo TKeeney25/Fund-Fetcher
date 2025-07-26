@@ -1,15 +1,19 @@
 # Fund Fetcher
 
-## TODO
+## Architecture
 
-### Information Required
+![Fund Fetcher Architecture](./docs/FundFetcher.png)
 
-- symbol
-- ytd
-- oneYear
-- threeYear
-- fiveYear
-- tenYear
-- fifteenYear
-- inception
-- starRating
+- FundFetcher-Queue (SQS)
+- Start-TickerTracker (EventBridge)
+- Check-Job-Completion (Lambda)
+
+## TODO List
+
+- [ ] Merge TickerTracker into FundFetcher Code
+- [ ] FundFetch using the screener
+- [ ] Create Client documentation
+- [ ] Fix unit tests
+- [ ] Create Live Dependency Tests
+- [ ] Implement AWS Architecture
+  - [ ] Implement Check-Job-Completion

@@ -10,8 +10,17 @@ undetected-chromedriver = "*"
 selenium = "*"
 setuptools = "*"
 boto3 = "*"
+pytest = "*"
+importlib = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.12"
+
+[scripts]
+test = "pytest"
+lint = "flake8 ."
+format = "black ."
+run = "python src/main.py"
+install = "pip install -r requirements.txt"
