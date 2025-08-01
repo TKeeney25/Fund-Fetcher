@@ -3,6 +3,8 @@ import os
 import time
 
 from sqlalchemy import Engine
+import sqlalchemy
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 import pandas as pd
 
@@ -71,9 +73,15 @@ class Processor():
             twelve_b_one_fee=screener_data.twelve_b_one_fee,
             morningstar_rating=screener_data.morningstar_rating
         )
+        existing_ticker:Ticker = self.session.exec(select(Ticker).where(Ticker.symbol == ticker.symbol)).first()
+        if existing_ticker is not None:
+            logger.exception("%s already exists. Deleting old ticker and replacing.", ticker.symbol) # TODO change the order. Do a read check and then delete if exists
+            self.session.delete(existing_ticker)
+            self.session.commit()
         self.session.add(ticker)
         self.judge_screener_data(ticker, screener_data)
         self.session.commit()
+
         if ticker.filter_failures is not None:
             self.mark_ticker_as_processed_unsuccessfully(ticker.symbol, Exception("Ticker failed filter"))
 
