@@ -25,11 +25,9 @@ LOG_MAX_BYTES = 100000
 LOG_BACKUP_COUNT = 10
 # endregion
 
-# REUSED XPATHS
 LOGIN_BUTTON = "//button[@type='submit']"
-SPAN_CONTAINS_TEXT = "//span[contains(text(), '{text}')]"
 
-CSV_FILE_PATH = '/fundfetcher/funds/'
+CSV_FILE_PATH = '/src/funds/'
 MAX_PROCESSING_ATTEMPTS = 10
 EMAIL_SOURCE = config.get('AWS_EMAIL')
 

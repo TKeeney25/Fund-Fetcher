@@ -111,7 +111,6 @@ def sleep_until_next_nearest_process_hour() -> bool:
     return True
 
 def main():
-    # TODO: Handle error with fund like DXC
     while True:
         try:
             healthcheck = sleep_until_next_nearest_process_hour()
