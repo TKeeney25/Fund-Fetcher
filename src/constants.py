@@ -28,7 +28,7 @@ LOG_BACKUP_COUNT = 10
 LOGIN_BUTTON = "//button[@type='submit']"
 
 CSV_FILE_PATH = '/src/funds/'
-MAX_PROCESSING_ATTEMPTS = 10
+MAX_PROCESSING_ATTEMPTS = 5
 EMAIL_SOURCE = config.get('AWS_EMAIL')
 
 CLIENT_EMAILS:list[str] = config.get('CLIENT_EMAILS')
