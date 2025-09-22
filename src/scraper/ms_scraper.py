@@ -58,7 +58,7 @@ class Scraper:
                 raise e
             except Exception as e:
                 scraper = args[0]
-                scraper.screenshot(f"EXCEPTION_{func.__name__}")
+                # scraper.screenshot(f"EXCEPTION_{func.__name__}")
                 logger.exception("Exception occurred at url %s: %s", scraper.driver.current_url, repr(e))
                 raise e
         return inner_function
@@ -171,7 +171,10 @@ class Scraper:
 
         title_row_list = self._convert_table_row_to_list(title_row)
         data_row_list = self._convert_table_row_to_list(data_rows[0])
-        return trailing_returns.etl(title_row_list, data_row_list)
+        returns = trailing_returns.etl(title_row_list, data_row_list)
+        if trailing_returns.is_all_null(returns):
+            raise ValueError("No trailing returns found for stock at url %s", self.driver.current_url)
+        return returns
 
     @scraper_exception_handler
     def _get_trailing_returns(self) -> TrailingReturns:
@@ -184,7 +187,10 @@ class Scraper:
 
         title_row_list = self._convert_table_row_to_list(title_row)
         data_row_list = self._convert_table_row_to_list(data_rows[0])
-        return trailing_returns.etl(title_row_list, data_row_list)
+        returns = trailing_returns.etl(title_row_list, data_row_list)
+        if trailing_returns.is_all_null(returns):
+            raise ValueError("No trailing returns found for fund/etf at url %s", self.driver.current_url)
+        return returns
     
     @scraper_exception_handler
     def get_morningstar_rating(self, ticker_type:TickerType) -> int | None:

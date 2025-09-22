@@ -22,3 +22,9 @@ def etl(title_data:List[str], raw_data:List[str]) -> TrailingReturns:
         except ValueError:
             data_dict[title.lower()] = None
     return TrailingReturns(**data_dict)
+
+def is_all_null(trailing_returns:TrailingReturns) -> bool:
+    for value in trailing_returns.model_dump().values():
+        if value is not None:
+            return False
+    return True
