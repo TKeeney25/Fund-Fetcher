@@ -67,7 +67,7 @@ class Scraper:
         with selenium.webdriver.Chrome() as driver:
             # TODO: Make better
             driver.get("chrome://settings/help")
-            sleep(60)
+            sleep(30)
             logger.info("Hopefully Chrome is up to date")
 
     @scraper_exception_handler

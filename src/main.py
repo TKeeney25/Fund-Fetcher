@@ -165,8 +165,8 @@ def main():
                 if len(failed_tickers) > 0 or len(data_controls_failures) > 0:
                     logger.info("The following tickers failed %s", failed_tickers)
                     if not healthcheck:
-                        if len(failed_tickers) > 5:
-                            logger.error("More than 5 tickers failed skipping sending to clients.")
+                        if len(failed_tickers) > 30:
+                            logger.error("More than 30 tickers failed skipping sending to clients.")
                             send_email_with_results(f"{result_str}\n\nMore than 30 tickers failed skipping sending to clients: {failed_tickers}", [ADMIN_EMAIL])
                         else:
                             send_email_with_results(f"{result_str}", CLIENT_EMAILS)

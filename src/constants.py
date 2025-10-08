@@ -6,7 +6,7 @@ with open(Path(get_root_dir()) / 'config.json', encoding='utf-8') as f:
     config:dict = json.load(f)
 
 # Config
-SELENIUM_TIMEOUT = 30
+SELENIUM_TIMEOUT = 5
 SELENIUM_POLLING_RATE = 0.01
 
 BASE_URL = "https://www.morningstar.com/"
@@ -28,7 +28,7 @@ LOG_BACKUP_COUNT = 10
 LOGIN_BUTTON = "//button[@type='submit']"
 
 CSV_FILE_PATH = '/src/funds/'
-MAX_PROCESSING_ATTEMPTS = 5
+MAX_PROCESSING_ATTEMPTS = 10
 EMAIL_SOURCE = config.get('AWS_EMAIL')
 
 CLIENT_EMAILS:list[str] = config.get('CLIENT_EMAILS')
@@ -37,5 +37,5 @@ CLIENT_EMAILS.append(ADMIN_EMAIL)
 OUTPUT_CSV_FILE = 'DailyFundReturns.csv'
 OUTPUT_CSV_FILE_PATH = Path(get_root_dir()) / 'output' / OUTPUT_CSV_FILE
 
-HEALTHCHECK_TIMES_HOUR = [17, 22]
+HEALTHCHECK_TIMES_HOUR = [18, 22]
 TARGET_RUN_TIME = 6
