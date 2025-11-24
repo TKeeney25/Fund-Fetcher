@@ -23,6 +23,8 @@ logging.basicConfig(
     format=LOG_FORMAT
 )
 
+is_first_run = True
+
 def read_funds_csv() -> set[str]:
     funds:set[str] = set()
     file_path = None
@@ -100,11 +102,28 @@ def get_next_nearest_process_hour():
         return hour
     return run_hours[0]
 
-def sleep_until_next_nearest_process_hour() -> bool:
-    next_nearest_process_hour = get_next_nearest_process_hour()
-    sleep_until_time(next_nearest_process_hour)
+def get_previous_nearest_process_hour():
     now = datetime.now()
-    if next_nearest_process_hour == TARGET_RUN_TIME and now.weekday() < 5:
+    run_hours:list[int] = HEALTHCHECK_TIMES_HOUR[:]
+    run_hours.append(TARGET_RUN_TIME)
+    run_hours.sort(reverse=True)
+    for hour in run_hours:
+        if now.hour <= hour:
+            continue
+        return hour
+    return run_hours[0]
+
+def sleep_until_next_nearest_process_hour() -> bool:
+    global is_first_run
+    if is_first_run:
+        is_first_run = False
+        process_hour = get_previous_nearest_process_hour()
+        logger.info("First run detected. First Run set to %s", is_first_run)
+    else:
+        process_hour = get_next_nearest_process_hour()
+        sleep_until_time(process_hour)
+    now = datetime.now()
+    if process_hour == TARGET_RUN_TIME and now.weekday() < 5:
         logger.info("Client run time reached. Results will be sent to clients.")
         return False
     logger.info("Healthcheck run time reached. Results will not be sent to clients.")
