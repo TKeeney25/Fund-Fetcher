@@ -7,6 +7,7 @@ import time
 from typing import List
 
 from constants import *
+from consumers.sqs_event_consumer import process_events
 from database.query_processor import Processor
 from enums.ticker_types import TickerType
 from controls import check_data_controls
@@ -203,4 +204,5 @@ def main():
             send_email_with_results(f"SERVICE IS UNHEALTHY. Error: {repr(e)}", [ADMIN_EMAIL])
 
 if __name__ == "__main__":
-    main()
+    process_events()
+    # main()
