@@ -101,8 +101,8 @@ class Scraper:
             search_field.send_keys(ticker)
             try:
                 old_url = self.driver.current_url
-                button = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'mdc-site-search__top-hit')))
-                button.click()
+                results = self.driver.find_elements(By.CLASS_NAME, 'mdc-site-search__result__mdc')
+                results[0].click()
                 self.wait.until(EC.url_changes(old_url))
             except selenium.common.exceptions.TimeoutException:
                 logger.warning("Ticker %s not found in search recommendations. Trying direct URL", ticker)
