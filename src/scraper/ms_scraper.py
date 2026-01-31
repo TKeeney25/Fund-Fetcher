@@ -74,7 +74,7 @@ class Scraper:
     def login(self):
         self.check_chrome_is_up_to_date()
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=self.headless, use_subprocess=False)
+        self.driver = uc.Chrome(headless=self.headless, use_subprocess=False, version_main=144)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         self.driver.get(LOGIN_URL)
 
@@ -91,7 +91,8 @@ class Scraper:
         old_url = self.driver.current_url
         submit_button = self.wait.until(EC.presence_of_element_located((By.XPATH, LOGIN_BUTTON)))
         submit_button.click()
-        self.wait.until(EC.url_changes(old_url))
+        # self.wait.until(EC.url_changes(old_url))
+        sleep(10)
 
         if self.driver.current_url != BASE_URL:
             logger.error("Login failed. Current URL equals %s", self.driver.current_url)
