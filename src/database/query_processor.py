@@ -59,7 +59,7 @@ class Processor():
         self.session.commit()
 
     def add_screener_data(self, ticker: str, screener_data: ScreenerData):
-        ticker = Ticker(
+        ticker_obj = Ticker(
             symbol=ticker,
             name=screener_data.name,
             category=screener_data.category,
@@ -71,21 +71,26 @@ class Processor():
             return_10y=screener_data.return_10y,
             yield_ttm=screener_data.ttm_yield,
             twelve_b_one_fee=screener_data.twelve_b_one_fee,
-            morningstar_rating=screener_data.morningstar_rating
-        )
-        existing_ticker:Ticker = self.session.exec(select(Ticker).where(Ticker.symbol == ticker.symbol)).first()
+            morningstar_rating=screener_data.morningstar_rating,
+            risk_score=screener_data.risk_score,
+            url=screener_data.url,
+        ) # pyright: ignore[reportCallIssue]
+        existing_ticker:Ticker = self.session.exec(select(Ticker).where(Ticker.symbol == ticker_obj.symbol)).first()
         if existing_ticker is not None:
-            logger.exception("%s already exists. Deleting old ticker and replacing.", ticker.symbol) # TODO change the order. Do a read check and then delete if exists
+            logger.exception("%s already exists. Deleting old ticker and replacing.", ticker_obj.symbol) # TODO change the order. Do a read check and then delete if exists
             self.session.delete(existing_ticker)
             self.session.commit()
-        self.session.add(ticker)
-        self.judge_screener_data(ticker, screener_data)
+        self.session.add(ticker_obj)
+        self.judge_screener_data(ticker_obj, screener_data)
         self.session.commit()
 
-        if ticker.filter_failures is not None:
-            self.mark_ticker_as_processed_unsuccessfully(ticker.symbol, Exception("Ticker failed filter"))
+        if ticker_obj.filter_failures is not None:
+            self.mark_ticker_as_processed_unsuccessfully(ticker_obj.symbol, Exception("Ticker failed filter"))
 
     def judge_screener_data(self, ticker: Ticker, screener_data: ScreenerData):
+        if screener_data.symbol is not None and screener_data.symbol.startswith("NULL_"):
+            logger.warning("Ticker %s has a null symbol", ticker.symbol)
+            self.add_filter_failure(ticker, "Null symbol")
         if screener_data.twelve_b_one_fee is not None and screener_data.twelve_b_one_fee > 0:
             logger.warning("Ticker %s has a 12b-1 fee greater than 0", ticker.symbol)
             self.add_filter_failure(ticker, "12b-1 fee greater than 0")
@@ -115,9 +120,17 @@ class Processor():
             ticker.filter_failures += f", {failure}"
 
     def get_non_filtered_tickers(self) -> list[str]:
-        statement = select(Ticker).where(Ticker.filter_failures == None)
+        statement = select(Ticker).where(Ticker.filter_failures == None).where(Ticker.processing_complete == None)
         tickers = self.session.exec(statement).all()
         return [ticker.symbol for ticker in tickers]
+    
+    def get_ticker_url(self, ticker: str) -> str:
+        statement = select(Ticker).where(Ticker.symbol == ticker)
+        ticker_obj: Ticker = self.session.exec(statement).first()
+        if ticker_obj is None:
+            logger.error("Ticker %s not found in the database", ticker)
+            return ""
+        return ticker_obj.url if ticker_obj.url else ""
     
     def add_number_of_negative_years(self, ticker: str, negative_years: int):
         statement = select(Ticker).where(Ticker.symbol == ticker)
@@ -142,7 +155,7 @@ class Processor():
         self.session.commit()
 
     def redrive_dlq(self):
-        statement = select(Ticker).where(Ticker.processing_complete != None).where(Ticker.processing_attempts == 4)
+        statement = select(Ticker).where(Ticker.processing_complete == None).where(Ticker.processing_attempts == 4)
         tickers = self.session.exec(statement).all()
         for ticker in tickers:
             ticker.processing_complete = None
@@ -197,11 +210,11 @@ class Processor():
         os.makedirs(os.path.dirname(OUTPUT_CSV_FILE_PATH), exist_ok=True)
         os.makedirs(os.path.dirname(OUTPUT_XLSX_FILE_PATH), exist_ok=True)
         with open(OUTPUT_CSV_FILE_PATH, 'w', encoding="utf-8") as file:
-            file.write("Ticker,Name,Category,YTD Return,1 month,1 year,3 year,5 year,10 year,yield,Number of Negative Years (Within Past 10 Years)\n")
+            file.write("Ticker,Name,Category,YTD Return,1 month,1 year,3 year,5 year,10 year,yield,Number of Negative Years (Within Past 10 Years),Risk Rating\n")
             for ticker in tickers:
-                file.write(f"{ticker.symbol},{ticker.name},{ticker.category},{ticker.return_ytd},{ticker.return_1m},"
+                file.write(f"{ticker.symbol},{ticker.name.replace(',', '')},{ticker.category},{ticker.return_ytd},{ticker.return_1m},"
                             f"{ticker.return_1y},{ticker.return_3y},{ticker.return_5y},{ticker.return_10y},"
-                            f"{ticker.yield_ttm},{ticker.negative_years}\n")
+                            f"{ticker.yield_ttm},{ticker.negative_years},{ticker.risk_score}\n")
         read_file = pd.read_csv(OUTPUT_CSV_FILE_PATH)
         read_file.to_excel(OUTPUT_XLSX_FILE_PATH, index=False)
     
@@ -217,6 +230,7 @@ class Processor():
         fifteen_year_row_string = 'fifteenYear'
         inception_row_string = 'inception'
         star_rating_row_string = 'starRating'
+        risk_score_row_string = 'riskScore'
         for ticker in tickers:
             symbols_row_string += f',{ticker.symbol}'
             ytd_row_string += f',{self._csv_cell(ticker.return_ytd)}'
@@ -227,7 +241,7 @@ class Processor():
             fifteen_year_row_string += f',{self._csv_cell(ticker.return_15y)}'
             inception_row_string += f',{self._csv_cell(ticker.inception)}'
             star_rating_row_string += f',{self._csv_cell(ticker.morningstar_rating)}'
-
+            risk_score_row_string += f',{self._csv_cell(ticker.risk_score)}'
         os.makedirs(os.path.dirname(OUTPUT_CSV_FILE_PATH), exist_ok=True)
         with open(OUTPUT_CSV_FILE_PATH, 'w', encoding="utf-8") as csv:
             csv.write(f'{symbols_row_string}\n')
@@ -239,6 +253,7 @@ class Processor():
             csv.write(f'{fifteen_year_row_string}\n')
             csv.write(f'{inception_row_string}\n')
             csv.write(f'{star_rating_row_string}\n')
+            csv.write(f'{risk_score_row_string}\n')
 
     @staticmethod
     def _csv_cell(value: float | int | None) -> str:

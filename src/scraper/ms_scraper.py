@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import os
+from time import sleep
 from typing import Any, List, Tuple
 
 import selenium
@@ -63,7 +64,7 @@ class Scraper:
     @scraper_exception_handler
     def login(self):
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=False, use_subprocess=False)
+        self.driver = uc.Chrome(headless=False, use_subprocess=False, version_main=144)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)
@@ -101,21 +102,23 @@ class Scraper:
             search_field.send_keys(ticker)
             try:
                 old_url = self.driver.current_url
+                sleep(1)
+                self.wait.until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'mdc-site-search__result__mdc')))
                 results = self.driver.find_elements(By.CLASS_NAME, 'mdc-site-search__result__mdc')
                 results[0].click()
                 self.wait.until(EC.url_changes(old_url))
-            except selenium.common.exceptions.TimeoutException:
+            except selenium.common.exceptions.TimeoutException: # type: ignore
                 logger.warning("Ticker %s not found in search recommendations. Trying direct URL", ticker)
         
         if self.driver.current_url.split("/")[-2].lower() != ticker.lower(): # Alternate way to find ticker for difficult funds like FGTXX
             self.driver.get(SEARCH_URL + ticker)
-            search_all = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'search-all__section')))
-            search_hits = search_all.find_elements(By.CLASS_NAME, 'search-all__hit')
+            search_all = self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'mdc-basic-feed-item__content__mdc')))
+            search_hits = search_all.find_elements(By.CLASS_NAME, 'mdc-basic-feed-item__content__mdc')
             old_url = self.driver.current_url
             for hit in search_hits:
                 link = hit.find_element(By.TAG_NAME, 'a')
-                metadata = hit.find_element(By.CLASS_NAME, 'mdc-security-module__metadata')
-                found_ticker = metadata.find_element(By.CLASS_NAME, 'mdc-security-module__ticker').text
+                metadata = hit.find_element(By.CLASS_NAME, 'mdc-metadata__list__mdc')
+                found_ticker = metadata.find_elements(By.TAG_NAME, 'span')[0].text.strip()
                 if found_ticker.lower() == ticker.lower():
                     link.click()
                     break
@@ -128,6 +131,21 @@ class Scraper:
             self.driver.find_element(By.CLASS_NAME, 'mdc-metadata__list__mdc')
             return TickerType.STOCK
         except selenium.common.exceptions.NoSuchElementException:
+            if ticker[-1].upper() == "X":
+                return TickerType.MUTUAL_FUND
+            return TickerType.ETF
+    
+    @scraper_exception_handler
+    def go_to_ticker_page(self, url: str) -> TickerType:
+        logger.info("Navigating to ticker page: %s", url)
+        self.driver.get(url)
+        self.wait.until(EC.url_to_be(url))
+        logger.info("Successfully navigated to ticker page: %s", url)
+        try:
+            self.driver.find_element(By.CLASS_NAME, 'mdc-metadata__list__mdc')
+            return TickerType.STOCK
+        except selenium.common.exceptions.NoSuchElementException:
+            ticker = self.driver.current_url.split("/")[-2]
             if ticker[-1].upper() == "X":
                 return TickerType.MUTUAL_FUND
             return TickerType.ETF
@@ -234,20 +252,20 @@ class Scraper:
         temp_div = self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(text(), 'TickerTracker')]")))
         temp_div.click()
 
-        self.wait.until(EC.presence_of_element_located((By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset/label")))
-        checkbox_labels = self.driver.find_elements(By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset/label")
+        # self.wait.until(EC.presence_of_element_located((By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset/label")))
+        # checkbox_labels = self.driver.find_elements(By.XPATH, "//legend[contains(text(), 'Morningstar Rating for')]/ancestor::fieldset/label")
         
-        for checkbox_label in checkbox_labels:
-            checkbox = checkbox_label.find_element(By.TAG_NAME, 'input')
-            checked = len(checkbox_label.find_element(By.TAG_NAME, 'span').find_element(By.TAG_NAME, 'span').find_elements(By.XPATH, "./*")) > 0
-            print(f"checkbox {checkbox.get_attribute('value')}: {checked}")
-            try:
-                value = int(checkbox.get_attribute('value'))
-            except ValueError:
-                continue
-            if value >= 4 and not checked or value < 4 and checked:
-                self.driver.execute_script("arguments[0].click();", checkbox)
-                print("Clicked", value)
+        # for checkbox_label in checkbox_labels:
+        #     checkbox = checkbox_label.find_element(By.TAG_NAME, 'input')
+        #     checked = len(checkbox_label.find_element(By.TAG_NAME, 'span').find_element(By.TAG_NAME, 'span').find_elements(By.XPATH, "./*")) > 0
+        #     print(f"checkbox {checkbox.get_attribute('value')}: {checked}")
+        #     try:
+        #         value = int(checkbox.get_attribute('value'))
+        #     except ValueError:
+        #         continue
+        #     if value >= 4 and not checked or value < 4 and checked:
+        #         self.driver.execute_script("arguments[0].click();", checkbox)
+        #         print("Clicked", value)
 
     @scraper_exception_handler
     def get_all_tickers_and_ratings(self):
@@ -311,6 +329,11 @@ class Scraper:
                     row_list.append(element_text)
             except ValueError:
                 row_list.append(element_text)
+        try:
+            url = row_elements[2].find_element(By.TAG_NAME, 'a').get_attribute('href')
+        except selenium.common.exceptions.NoSuchElementException:
+            url = None
+        row_list.append(url) # pyright: ignore[reportOptionalSubscript, reportOperatorIssue]
         return row_list
 
     @scraper_exception_handler

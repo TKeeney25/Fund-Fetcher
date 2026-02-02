@@ -50,3 +50,5 @@ class Ticker(SQLModel, table=True):
     processing_attempts: int = 0
     # TT Metadata
     filter_failures: str | None # Contains a string explaining why symbol does not qualify if it does not qualify
+
+    url: str | None

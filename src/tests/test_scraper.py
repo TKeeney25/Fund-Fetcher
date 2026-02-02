@@ -22,7 +22,7 @@ def test_go_to_screener(scraper):
     print(scraper.get_number_of_negative_returns(scraper.find_ticker(TEST_ETF)))
     return
     fund_ratings = {}
-    fund_to_scrape = [ScreenerDownPresses.ETF, ScreenerDownPresses.MUTUAL_FUND]
+    fund_to_scrape = [ScreenerDownPresses.MUTUAL_FUNDS_AND_ETF, ScreenerDownPresses.MUTUAL_FUND]
     for fund in fund_to_scrape:
         print(fund)
         scraper.go_to_screener(fund)
