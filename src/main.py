@@ -48,60 +48,79 @@ def read_funds_csv() -> set[str]:
 # TODO fix browser run out of memory issue
 def main_tickertracker():
     with Processor(reuse_db=True) as processor:
-        with Scraper(keep_screenshots=False) as scraper:
-            # fund_to_scrape = [ScreenerDownPresses.ETF, ScreenerDownPresses.MUTUAL_FUND]
-            # for fund_type in fund_to_scrape:
-            #     logger.info("Processing fund type %s", fund_type)
-            #     scraper.go_to_screener(fund_type)
-            #     if sys.platform == "win32":
-            #         winsound.MessageBeep()
-            #     input("Press Enter to continue...")
-            #     current, maximum = 0, 1
-            #     dont = True
-            #     while current != maximum:
-            #         if dont:
-            #             dont = False
-            #         else:
-            #             current, maximum = scraper.paginate_next()
-            #             logger.info("Current: %s, Maximum: %s", current, maximum)
-            #         screener_data:List[ScreenerData] = scraper.get_screener_data()
-            #         for data in screener_data:
-            #             processor.add_screener_data(data.symbol, data)
-            processor.redrive_dlq()
+        # with Scraper(headless=False, keep_screenshots=False) as scraper:
+        #     fund_to_scrape = [ScreenerDownPresses.ETF, ScreenerDownPresses.MUTUAL_FUND]
+        #     for fund_type in fund_to_scrape:
+        #         logger.info("Processing fund type %s", fund_type)
+        #         scraper.go_to_screener(fund_type)
+        #         if sys.platform == "win32":
+        #             winsound.MessageBeep()
+        #         input("Press Enter to continue...")
+        #         current, maximum = 0, 1
+        #         dont = True
+        #         while current != maximum:
+        #             if dont:
+        #                 dont = False
+        #             else:
+        #                 current, maximum = scraper.paginate_next()
+        #                 logger.info("Current: %s, Maximum: %s", current, maximum)
+        #             screener_data:List[ScreenerData] = scraper.get_screener_data()
+        #             for data in screener_data:
+        #                 processor.add_screener_data(data.symbol, data)
+        start_time = datetime.now()
+        logger.info("TickerTracker started at %s", start_time.strftime('%Y-%m-%d %H:%M:%S'))
+        while (True):
             tickers:List[str] = processor.get_non_filtered_tickers()
+            total = len(tickers)
+            logger.info("There are %s tickers to process", total)
             ticker_queue = queue.Queue()
+            redrive_attempts = 10
             for ticker in tickers:
                 ticker_queue.put(ticker)
-            while not ticker_queue.empty():
-                ticker = ticker_queue.get()
-                if processor.has_ticker_been_processed(ticker):
-                    logger.info("Skipping %s as it has already been processed", ticker)
-                    continue
-                try:
-                    logger.info("Processing %s", ticker)
-                    ticker_type:TickerType = scraper.find_ticker(ticker)
-                    # TODO get brokerage availability
-                    logger.info("Step 1/2 Complete - %s is a %s", ticker, ticker_type.value)
-                    negative_returns = scraper.get_number_of_negative_returns(ticker_type)
-                    processor.add_number_of_negative_years(ticker, negative_returns)
-                    logger.info("Step 2/2 Complete - %s has negative returns %s", ticker, negative_returns)
-                    # TODO get risk_score
-                    # logger.info("Step 3/4 Complete - %s has a risk score of %s", ticker, 0)
-                    processor.mark_ticker_as_processed_successfully(ticker)
-                    logger.info("%s has been processed successfully", ticker)
-                except Exception as e:
-                    logger.exception("Error processing %s: %s", ticker, repr(e))
-                    processor.handle_processing_error(ticker, e)
-                    ticker_queue.put(ticker)
-            processor.export_to_ticker_tracker_xlsx()
-            failed_tickers = processor.get_failed_tickers()
-            logger.info("The following tickers failed %s", failed_tickers)
-            filtered_tickers = processor.get_filtered_tickers()
-            logger.info("The following tickers were filtered %s", filtered_tickers)
-            unfinished_tickers = processor.get_unfinished_tickers()
-            logger.info("The following tickers were unfinished %s", unfinished_tickers)
-            if sys.platform == "win32":
-                winsound.MessageBeep()
+            with Scraper(headless=True, keep_screenshots=False) as scraper:
+                while not ticker_queue.empty():
+                    ticker = ticker_queue.get()
+                    try:
+                        remaining = ticker_queue.qsize()
+                        if (processed := max(0, total - remaining - 1)) > 0:
+                            elapsed = (datetime.now() - start_time).total_seconds(); est = int((elapsed / processed) * remaining)
+                            logger.info("Estimated time remaining: %02d:%02d (HH:MM) %s/%s", est // 3600, (est % 3600) // 60, remaining, total)
+                    except Exception:
+                        logger.exception("Failed to compute estimated time remaining")
+                    if processor.has_ticker_been_processed(ticker):
+                        # logger.info("Skipping %s as it has already been processed", ticker)
+                        total -= 1
+                        continue
+                    try:
+                        logger.info("Processing %s", ticker)
+                        ticker_type:TickerType = scraper.find_ticker(ticker)
+                        # TODO get brokerage availability
+                        logger.info("Step 1/2 Complete - %s is a %s", ticker, ticker_type.value)
+                        negative_returns = scraper.get_number_of_negative_returns(ticker_type)
+                        processor.add_number_of_negative_years(ticker, negative_returns)
+                        logger.info("Step 2/2 Complete - %s has negative returns %s", ticker, negative_returns)
+                        # TODO get risk_score
+                        # logger.info("Step 3/4 Complete - %s has a risk score of %s", ticker, 0)
+                        processor.mark_ticker_as_processed_successfully(ticker)
+                        logger.info("%s has been processed successfully", ticker)
+                    except Exception as e:
+                        logger.exception("Error processing %s: %s", ticker, repr(e))
+                        processor.handle_processing_error(ticker, e)
+                        ticker_queue.put(ticker)
+            redrive_count = processor.redrive_dlq()
+            redrive_attempts -= 1
+            if redrive_count == 0 or redrive_attempts == 0:
+                break
+            logger.warning("Redrove %s tickers from the DLQ", redrive_count)
+        processor.export_to_ticker_tracker_xlsx()
+        failed_tickers = processor.get_failed_tickers()
+        logger.info("The following tickers failed %s", failed_tickers)
+        filtered_tickers = processor.get_filtered_tickers()
+        logger.info("The following tickers were filtered %s", filtered_tickers)
+        unfinished_tickers = processor.get_unfinished_tickers()
+        logger.info("The following tickers were unfinished %s", unfinished_tickers)
+        if sys.platform == "win32":
+            winsound.MessageBeep()
 
 
 def main():

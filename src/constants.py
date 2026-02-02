@@ -6,7 +6,7 @@ with open(Path(get_root_dir()) / 'config.json', encoding='utf-8') as f:
     config:dict = json.load(f)
 
 # Config
-SELENIUM_TIMEOUT = 30
+SELENIUM_TIMEOUT = 10
 SELENIUM_POLLING_RATE = 0.01
 
 BASE_URL = "https://www.morningstar.com/"

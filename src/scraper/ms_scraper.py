@@ -1,11 +1,13 @@
 from datetime import datetime
 import logging
 import os
+from time import sleep
 from typing import Any, List, Tuple
 
 import selenium
 import undetected_chromedriver as uc
-from urllib3.exceptions import MaxRetryError
+from urllib3.exceptions import MaxRetryError, ReadTimeoutError
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -27,10 +29,12 @@ class Scraper:
     wait:WebDriverWait
     retries = 0
     retry_backoff = [0, 10, 60, 5*60, 10*60, 60*60]
+    headless:bool
 
-    def __init__(self, keep_screenshots:bool = False):
+    def __init__(self, keep_screenshots:bool = False, headless:bool = True):
         if not keep_screenshots:
             self.clear_screenshots_folder()
+        self.headless = headless
 
     def __enter__(self):
         self.login()
@@ -44,7 +48,7 @@ class Scraper:
         def inner_function(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except MaxRetryError as e:
+            except (ReadTimeoutError, MaxRetryError, TimeoutException) as e:
                 scraper = args[0]
                 logger.exception("Max retries exceeded doing func %s with args: %s", func.__name__, *args)
                 try:
@@ -55,15 +59,22 @@ class Scraper:
                 raise e
             except Exception as e:
                 scraper = args[0]
-                scraper.screenshot(f"EXCEPTION_{func.__name__}")
+                # scraper.screenshot(f"EXCEPTION_{func.__name__}")
                 logger.exception("Exception occurred at url %s: %s", scraper.driver.current_url, repr(e))
                 raise e
         return inner_function
-
+    
+    def check_chrome_is_up_to_date(self):
+        with selenium.webdriver.Chrome() as driver:
+            # TODO: Make better
+            driver.get("chrome://settings/help")
+            sleep(30)
+            logger.info("Hopefully Chrome is up to date")
     @scraper_exception_handler
     def login(self):
+        #self.check_chrome_is_up_to_date()
         logger.info("Logging in to Morningstar")
-        self.driver = uc.Chrome(headless=False, use_subprocess=False)
+        self.driver = uc.Chrome(headless=self.headless, use_subprocess=False)
         self.driver.command_executor.set_timeout(SELENIUM_TIMEOUT)
         # self.driver.implicitly_wait(1.0)
         self.driver.get(LOGIN_URL)

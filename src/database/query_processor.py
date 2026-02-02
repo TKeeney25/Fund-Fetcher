@@ -107,6 +107,13 @@ class Processor():
         if screener_data.ttm_yield is None:
             logger.warning("Ticker %s has no TTM yield", ticker.symbol)
             self.add_filter_failure(ticker, "No TTM yield")
+        if screener_data.category is None or "target-date" in screener_data.category.lower():
+            if screener_data.category is None:
+                logger.warning("Ticker %s has no category", ticker.symbol)
+                self.add_filter_failure(ticker, "No category")
+            else:
+                logger.warning("Ticker %s is a target-date fund", ticker.symbol)
+                self.add_filter_failure(ticker, "Target-date fund")
 
     def add_filter_failure(self, ticker: Ticker, failure: str):
         if ticker.filter_failures is None:
@@ -141,15 +148,17 @@ class Processor():
             ticker.filter_failures = None
         self.session.commit()
 
-    def redrive_dlq(self):
+    def redrive_dlq(self) -> int:
         statement = select(Ticker).where(Ticker.processing_complete != None).where(Ticker.processing_attempts == 4)
         tickers = self.session.exec(statement).all()
+        redrive_count = len(tickers)
         for ticker in tickers:
             ticker.processing_complete = None
             ticker.processing_error = None
             ticker.processing_attempts = 0
             ticker.filter_failures = None
         self.session.commit()
+        return redrive_count
 
     def handle_processing_error(self, ticker: str, error: Exception):
         statement = select(Ticker).where(Ticker.symbol == ticker)
@@ -189,7 +198,10 @@ class Processor():
         statement = select(Ticker).where(Ticker.processing_complete == None)
         tickers = self.session.exec(statement).all()
         return [ticker.symbol for ticker in tickers]
-    
+
+    def clean(self, input_string: str) -> str:
+        return input_string.replace(',', '').replace('%', '').strip()
+     
     def export_to_ticker_tracker_xlsx(self):
         statement = select(Ticker).where(Ticker.processing_error == None)
         tickers = self.session.exec(statement).all()
@@ -199,7 +211,7 @@ class Processor():
         with open(OUTPUT_CSV_FILE_PATH, 'w', encoding="utf-8") as file:
             file.write("Ticker,Name,Category,YTD Return,1 month,1 year,3 year,5 year,10 year,yield,Number of Negative Years (Within Past 10 Years)\n")
             for ticker in tickers:
-                file.write(f"{ticker.symbol},{ticker.name},{ticker.category},{ticker.return_ytd},{ticker.return_1m},"
+                file.write(f"{ticker.symbol},{self.clean(ticker.name)},{ticker.category},{ticker.return_ytd},{ticker.return_1m},"
                             f"{ticker.return_1y},{ticker.return_3y},{ticker.return_5y},{ticker.return_10y},"
                             f"{ticker.yield_ttm},{ticker.negative_years}\n")
         read_file = pd.read_csv(OUTPUT_CSV_FILE_PATH)
